@@ -19,11 +19,10 @@ import morgan from 'morgan';
 
 const app = express();
 
-// Configuration pour les proxies (Railway, Render, Heroku, etc.)
-if (config.trustProxy) {
-  app.set('trust proxy', 1); // Trust first proxy (Railway, Render, etc.)
-  console.log('🔧 Trust proxy activé pour la production');
-}
+// ⚠️ IMPORTANT: Configuration trust proxy AVANT rate limiting
+// Railway, Render, et autres plateformes envoient X-Forwarded-For
+app.set('trust proxy', true); // Toujours activer pour Railway/Render
+console.log('🔧 Trust proxy activé (requis pour Railway/Render)');
 
 app.use(morgan('dev'));
 
@@ -38,16 +37,16 @@ app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Rate limiting avec configuration proxy-aware
+// Rate limiting - trust proxy déjà configuré au-dessus
 const rateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // 100 requêtes par IP
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Configuration spéciale pour les proxies
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Trust proxy est déjà configuré globalement
   keyGenerator: (req: any) => {
-    // Utiliser l'IP normalisée par notre middleware
-    return req.clientIP || req.ip || req.connection?.remoteAddress || 'unknown';
+    // express-rate-limit utilisera automatiquement X-Forwarded-For
+    return req.ip || 'unknown';
   },
   // Skip rate limiting pour les health checks
   skip: (req: express.Request) => {
