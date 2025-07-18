@@ -2,7 +2,7 @@
   "name": "bus-tickets-backend",
   "version": "1.0.0",
   "description": "API pour la digitalisation de l’achat de tickets de bus étudiants (Université de Kara)",
-  "main": "dist/index.js",
+  "main": "dist/server.js",
   "scripts": {
     "test:cov": "jest --coverage",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
@@ -15,7 +15,8 @@
     "deploy:check": "npm run build && npm run test && echo 'Ready for deployment!'",
     "deploy:unix": "bash scripts/deploy.sh",
     "deploy:windows": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
-    "postinstall": "npm run build"
+    "deployment:ready": "powershell -ExecutionPolicy Bypass -File scripts/deployment-check.ps1",
+    "docker:troubleshoot": "powershell -ExecutionPolicy Bypass -File scripts/docker-troubleshoot.ps1"
   },
   "author": "",
   "license": "MIT",
