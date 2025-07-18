@@ -10,7 +10,12 @@
     "start": "node dist/server.js",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "generate-secrets": "node scripts/generate-secrets.js",
+    "deploy:check": "npm run build && npm run test && echo 'Ready for deployment!'",
+    "deploy:unix": "bash scripts/deploy.sh",
+    "deploy:windows": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
+    "postinstall": "npm run build"
   },
   "author": "",
   "license": "MIT",

@@ -13,6 +13,7 @@ import driverRoutes from './routes/driver.routes';
 import adminRoutes from './routes/admin.routes';
 import authRoutes from './routes/auth.routes';
 import { config } from './config/config';
+import { healthCheck, simpleHealthCheck } from './controllers/health.controller';
 import morgan from 'morgan';
 
 const app = express();
@@ -25,14 +26,9 @@ app.use(express.json());
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    success: true, 
-    message: 'API fonctionne correctement',
-    timestamp: new Date().toISOString()
-  });
-});
+// Health check endpoints
+app.get('/health', simpleHealthCheck);  // Simple pour load balancers
+app.get('/api/health', healthCheck);    // Détaillé pour monitoring
 
 // Auth global (refresh token, etc.)
 app.use('/api/auth', authRoutes);
