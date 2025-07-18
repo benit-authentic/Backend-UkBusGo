@@ -26,17 +26,17 @@ export const validateTicket = async (req: Request, res: Response, next: NextFunc
     if (!student) {
       return res.status(404).json({ success: false, message: 'Étudiant non trouvé.' });
     }
-    // Vérifier le solde
-    if (student.balance < 150) {
+    // Vérifier les tickets
+    if (!student.tickets || student.tickets < 1) {
       await Validation.create({ student: student._id, driver: driverId, amount: 0, date: new Date(), isValid: false });
-      return res.status(400).json({ success: false, message: 'Solde insuffisant.', isValid: false });
+      return res.status(400).json({ success: false, message: 'Aucun ticket disponible.', isValid: false, tickets: student.tickets || 0 });
     }
-    // Décrémenter le solde et enregistrer la validation
-    student.balance -= 150;
+    // Décrémenter les tickets et enregistrer la validation
+    student.tickets -= 1;
     student.history.push({ type: 'validation', amount: 150, date: new Date() });
     await student.save();
     await Validation.create({ student: student._id, driver: driverId, amount: 150, date: new Date(), isValid: true });
-    return res.status(200).json({ success: true, message: 'Ticket validé.', isValid: true, balance: student.balance });
+    return res.status(200).json({ success: true, message: 'Ticket validé.', isValid: true, tickets: student.tickets, balance: student.balance });
   } catch (err) {
     next(err);
   }

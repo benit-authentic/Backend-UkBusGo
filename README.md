@@ -16,6 +16,57 @@ API REST Node.js/TypeScript pour la gestion digitale des tickets de bus (étudia
 
 ---
 
+## 🔑 Authentification & Tokens
+- **Access token** : expire après 15 min
+- **Refresh token** : expire après 1 an (365 jours)
+- Les refresh tokens sont longs à vivre pour garantir une expérience fluide toute l’année scolaire.
+- En cas de changement critique (mot de passe, téléphone), tous les tokens sont invalidés côté serveur.
+- Les tokens doivent être stockés de façon sécurisée (httpOnly cookie côté web, secure storage côté mobile).
+
+---
+
+## 🗂️ Modèles de données principaux
+
+### Student
+- `id: string` (ObjectId)
+- `firstName: string`
+- `lastName: string`
+- `phone: string` (unique)
+- `password: string` (hashé)
+- `balance: number`
+- `history: Array<{ type: 'purchase' | 'recharge', amount: number, date: Date }>`
+
+### Driver
+- `id: string` (ObjectId)
+- `firstName: string`
+- `lastName: string`
+- `phone: string` (unique)
+- `password: string` (hashé)
+
+### Admin
+- `id: string` (ObjectId)
+- `firstName: string`
+- `lastName: string`
+- `phone: string` (unique)
+- `password: string` (hashé)
+
+### Transaction
+- `id: string` (ObjectId)
+- `identifier: string` (unique, Paygate)
+- `student: ObjectId` (référence Student)
+- `amount: number`
+- `status: 'pending' | 'success' | 'failed'`
+- `network: 'FLOOZ' | 'TMONEY'`
+- `createdAt: Date`
+
+### Validation
+- `id: string` (ObjectId)
+- `student: ObjectId` (référence Student)
+- `driver: ObjectId` (référence Driver)
+- `date: Date`
+
+---
+
 ## 📁 Structure du projet
 ```
 src/

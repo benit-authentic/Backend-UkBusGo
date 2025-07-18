@@ -47,6 +47,41 @@ export const loginStudent = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
+ * Récupérer le profil de l'étudiant connecté (inclut le solde)
+ * @route GET /api/students/me
+ * @access Auth (étudiant)
+ * @returns { success: true, data: { id, firstName, lastName, phone, balance }, message }
+ */
+export const getStudentProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // @ts-ignore
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Utilisateur non authentifié.' });
+    }
+    const student = await Student.findById(userId).lean();
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Étudiant introuvable.' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: student._id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        phone: student.phone,
+        balance: student.balance,
+        tickets: student.tickets || 0,
+      },
+      message: 'Profil étudiant récupéré',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+/**
  * Initier une recharge de compte étudiant
  * @route POST /api/students/recharge
  */
@@ -104,14 +139,16 @@ export const buyTicket = async (req: Request, res: Response, next: NextFunction)
     if (student.balance < total) {
       return res.status(400).json({ success: false, message: 'Solde insuffisant.' });
     }
-    // Décrémenter le solde et ajouter à l'historique
+    // Décrémenter le solde, incrémenter les tickets et ajouter à l'historique
     student.balance -= total;
+    student.tickets = (student.tickets || 0) + quantity;
     student.history.push({ type: 'purchase', amount: total, date: new Date() });
     await student.save();
-    // Générer le QR code dynamique (solde, id, timestamp)
+    // Générer le QR code dynamique (tickets, solde, id, timestamp)
     const qrPayload = {
       id: student._id,
       balance: student.balance,
+      tickets: student.tickets,
       ts: Date.now(),
     };
     const qr = await QRCode.toDataURL(JSON.stringify(qrPayload));
@@ -119,7 +156,7 @@ export const buyTicket = async (req: Request, res: Response, next: NextFunction)
     const lowBalance = student.balance < LOW_BALANCE_THRESHOLD;
     return res.status(200).json({
       success: true,
-      data: { qr, balance: student.balance, lowBalance },
+      data: { qr, balance: student.balance, tickets: student.tickets, lowBalance },
       message: lowBalance
         ? "Ticket(s) acheté(s) avec succès. Attention, votre solde est faible."
         : 'Ticket(s) acheté(s) avec succès',
@@ -174,6 +211,7 @@ export const registerStudent = async (req: Request, res: Response, next: NextFun
       ...data,
       password: hashedPassword,
       balance: 0,
+      tickets: 0,
       history: [],
     });
     return res.status(201).json({

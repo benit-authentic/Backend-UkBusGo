@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerStudent, loginStudent, rechargeStudent, buyTicket, getStudentHistory } from '../controllers/student.controller';
+import { registerStudent, loginStudent, rechargeStudent, buyTicket, getStudentHistory, getStudentProfile } from '../controllers/student.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
@@ -273,5 +273,50 @@ router.post('/buy-ticket', requireAuth(['student']), buyTicket);
  *               message: "Historique récupéré"
  */
 router.get('/history', requireAuth(['student']), getStudentHistory);
+
+/**
+ * @swagger
+ * /api/students/me:
+ *   get:
+ *     summary: Récupérer le profil de l'étudiant connecté (inclut le solde)
+ *     tags: [Students]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil étudiant récupéré
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     balance:
+ *                       type: number
+ *                 message:
+ *                   type: string
+ *             example:
+ *               success: true
+ *               data:
+ *                 id: "123"
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 phone: "900000000"
+ *                 balance: 1200
+ *               message: "Profil étudiant récupéré"
+ */
+router.get('/me', requireAuth(['student']), getStudentProfile);
 
 export default router;

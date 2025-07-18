@@ -71,6 +71,36 @@ export const getDriverHistory = async (req: Request, res: Response, next: NextFu
 };
 
 /**
+ * Récupérer l'historique complet des validations du chauffeur
+ * @route GET /api/drivers/history/all
+ */
+export const getDriverHistoryAll = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // @ts-ignore
+    const driverId = req.user?.id;
+    if (!driverId) {
+      return res.status(400).json({ success: false, message: 'Utilisateur non authentifié.' });
+    }
+    
+    // Récupérer toutes les validations du chauffeur, triées par date décroissante
+    const validations = await Validation.find({
+      driver: driverId,
+    })
+    .populate('student', 'firstName lastName phone')
+    .sort({ date: -1 })
+    .lean();
+    
+    return res.status(200).json({
+      success: true,
+      data: validations,
+      message: 'Historique complet récupéré',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Inscription d'un chauffeur
  * @route POST /api/drivers/register
  */
@@ -90,6 +120,38 @@ export const registerDriver = async (req: Request, res: Response, next: NextFunc
       success: true,
       data: { id: driver._id, firstName: driver.firstName, lastName: driver.lastName, phone: driver.phone },
       message: 'Inscription chauffeur réussie',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Récupérer le profil du chauffeur connecté
+ * @route GET /api/drivers/me
+ * @access Auth (chauffeur)
+ * @returns { success: true, data: { id, firstName, lastName, phone }, message }
+ */
+export const getDriverProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // @ts-ignore
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Utilisateur non authentifié.' });
+    }
+    const driver = await Driver.findById(userId).lean();
+    if (!driver) {
+      return res.status(404).json({ success: false, message: 'Chauffeur introuvable.' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: driver._id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        phone: driver.phone,
+      },
+      message: 'Profil chauffeur récupéré',
     });
   } catch (err) {
     next(err);

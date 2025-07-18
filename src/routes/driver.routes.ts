@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerDriver, loginDriver, getDriverHistory } from '../controllers/driver.controller';
+import { registerDriver, loginDriver, getDriverHistory, getDriverHistoryAll, getDriverProfile } from '../controllers/driver.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
@@ -130,6 +130,48 @@ router.post('/login', loginDriver);
 
 /**
  * @swagger
+ * /api/drivers/me:
+ *   get:
+ *     summary: Récupérer le profil du chauffeur connecté
+ *     tags: [Drivers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil chauffeur récupéré
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               success: true
+ *               data:
+ *                 id: "456"
+ *                 firstName: "Jane"
+ *                 lastName: "Smith"
+ *                 phone: "8888888888"
+ *               message: "Profil chauffeur récupéré"
+ */
+router.get('/me', requireAuth(['driver']), getDriverProfile);
+
+/**
+ * @swagger
  * /api/drivers/history:
  *   get:
  *     summary: Historique des validations du jour (protégé)
@@ -176,5 +218,6 @@ router.post('/login', loginDriver);
  *               message: "Historique du jour récupéré"
  */
 router.get('/history', requireAuth(['driver']), getDriverHistory);
+router.get('/history/all', requireAuth(['driver']), getDriverHistoryAll);
 
 export default router;

@@ -6,6 +6,7 @@ export interface IStudent extends Document {
   phone: string;
   password: string;
   balance: number;
+  tickets: number; // Nombre de tickets disponibles
   history: Array<{
     type: 'purchase' | 'validation';
     amount: number;
@@ -23,6 +24,7 @@ const studentSchema = new Schema<IStudent>(
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     balance: { type: Number, default: 0 },
+    tickets: { type: Number, default: 0 },
     history: [
       {
         type: {
