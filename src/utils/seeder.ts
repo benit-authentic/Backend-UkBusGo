@@ -23,32 +23,32 @@ export const seedDatabase = async () => {
     const admin = new Admin({
       firstName: 'Admin',
       lastName: 'Principal',
-      phone: '90000000',
+      phone: '+22890000000',
       password: adminPassword,
     });
     await admin.save();
-    console.log('👑 Admin créé: phone=90000000, password=admin123');
+    console.log('👑 Admin créé: phone=+22890000000, password=admin123');
 
     // Créer deux chauffeurs
     const driver1Password = await bcrypt.hash('driver1', saltRounds);
     const driver1 = new Driver({
       firstName: 'Kofi',
       lastName: 'Mensah',
-      phone: '91111111',
+      phone: '+22891111111',
       password: driver1Password,
     });
     await driver1.save();
-    console.log('🚗 Chauffeur 1 créé: phone=91111111, password=driver1');
+    console.log('🚗 Chauffeur 1 créé: phone=+22891111111, password=driver1');
 
     const driver2Password = await bcrypt.hash('driver2', saltRounds);
     const driver2 = new Driver({
       firstName: 'Ama',
       lastName: 'Asante',
-      phone: '92222222',
+      phone: '+22892222222',
       password: driver2Password,
     });
     await driver2.save();
-    console.log('🚗 Chauffeur 2 créé: phone=92222222, password=driver2');
+    console.log('🚗 Chauffeur 2 créé: phone=+22892222222, password=driver2');
 
     // Créer deux étudiants
     // Étudiant 1 avec solde et tickets
@@ -56,7 +56,7 @@ export const seedDatabase = async () => {
     const student1 = new Student({
       firstName: 'Kwame',
       lastName: 'Adjei',
-      phone: '93333333',
+      phone: '+22893333333',
       password: student1Password,
       balance: 10000,
       tickets: 20,
@@ -74,21 +74,21 @@ export const seedDatabase = async () => {
       ],
     });
     await student1.save();
-    console.log('🎓 Étudiant 1 créé: phone=93333333, password=student33, balance=10000F, tickets=20');
+    console.log('🎓 Étudiant 1 créé: phone=+22893333333, password=student33, balance=10000F, tickets=20');
 
     // Étudiant 2 sans solde ni tickets
     const student2Password = await bcrypt.hash('student44', saltRounds);
     const student2 = new Student({
       firstName: 'Akosua',
       lastName: 'Osei',
-      phone: '94444444',
+      phone: '+22894444444',
       password: student2Password,
       balance: 0,
       tickets: 0,
       history: [],
     });
     await student2.save();
-    console.log('🎓 Étudiant 2 créé: phone=94444444, password=student44, balance=0F, tickets=0');
+    console.log('🎓 Étudiant 2 créé: phone=+22894444444, password=student44, balance=0F, tickets=0');
 
     // Créer des validations entre l'étudiant 1 et le chauffeur 1
     console.log('📊 Création des validations de test...');
@@ -148,11 +148,11 @@ export const seedDatabase = async () => {
 
     console.log('✅ Seeding terminé avec succès !');
     console.log('📱 Comptes de test disponibles:');
-    console.log('   Admin: 90000000 / admin123');
-    console.log('   Chauffeur 1: 91111111 / driver1');
-    console.log('   Chauffeur 2: 92222222 / driver2');
-    console.log('   Étudiant riche: 93333333 / student33');
-    console.log('   Étudiant pauvre: 94444444 / student44');
+    console.log('   Admin: +22890000000 / admin123');
+    console.log('   Chauffeur 1: +22891111111 / driver1');
+    console.log('   Chauffeur 2: +22892222222 / driver2');
+    console.log('   Étudiant riche: +22893333333 / student33');
+    console.log('   Étudiant pauvre: +22894444444 / student44');
 
   } catch (error) {
     console.error('❌ Erreur lors du seeding:', error);
