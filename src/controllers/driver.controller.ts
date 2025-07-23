@@ -54,16 +54,59 @@ export const getDriverHistory = async (req: Request, res: Response, next: NextFu
     if (!driverId) {
       return res.status(400).json({ success: false, message: 'Utilisateur non authentifié.' });
     }
-    const startOfDay = new Date();
+
+    // Si une date est fournie en query parameter, l'utiliser, sinon prendre aujourd'hui
+    const { date } = req.query;
+    let targetDate: Date;
+    
+    if (date && typeof date === 'string') {
+      // Format attendu: YYYY-MM-DD
+      // Créer la date en forçant la timezone locale pour éviter les décalages UTC
+      const [year, month, day] = date.split('-').map(Number);
+      targetDate = new Date(year, month - 1, day); // month est 0-indexé en JS
+      
+      if (isNaN(targetDate.getTime())) {
+        return res.status(400).json({ success: false, message: 'Format de date invalide. Utilisez YYYY-MM-DD.' });
+      }
+      
+      console.log(`📅 Date reçue: ${date}`);
+      console.log(`📅 Date parsée: ${targetDate.toISOString()}`);
+      console.log(`📅 Date locale: ${targetDate.toLocaleDateString()}`);
+    } else {
+      // Par défaut: aujourd'hui
+      targetDate = new Date();
+    }
+
+    // Créer les bornes de la journée (00:00:00 à 23:59:59)
+    const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log(`🕐 Période recherchée: ${startOfDay.toISOString()} - ${endOfDay.toISOString()}`);
+
     const validations = await Validation.find({
       driver: driverId,
-      date: { $gte: startOfDay },
-    }).populate('student', 'firstName lastName phone').lean();
+      date: { 
+        $gte: startOfDay,
+        $lte: endOfDay
+      },
+    })
+    .populate('student', 'firstName lastName phone')
+    .sort({ date: -1 })
+    .lean();
+
+    console.log(`📊 ${validations.length} validations trouvées pour la période`);
+    if (validations.length > 0) {
+      console.log(`📅 Première validation: ${validations[0].date}`);
+      console.log(`📅 Dernière validation: ${validations[validations.length - 1].date}`);
+    }
+
     return res.status(200).json({
       success: true,
       data: validations,
-      message: 'Historique du jour récupéré',
+      message: date ? `Historique du ${date} récupéré` : 'Historique du jour récupéré',
     });
   } catch (err) {
     next(err);
