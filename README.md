@@ -18,8 +18,8 @@
 - 🎓 **Gestion des étudiants** - Inscription, authentification, solde
 - 🚐 **Interface chauffeurs** - Validation des tickets via QR codes
 - 👥 **Panel administrateur** - Statistiques et gestion des utilisateurs
-- 💳 **Intégration paiement** - Support FLOOZ/TMONEY via PayGate
-- 🔐 **Sécurité avancée** - JWT, validation, rate limiting
+- 💳 **Intégration paiement** - Support FLOOZ/TMONEY via **FedaPay** et PayGate
+- 🔐 **Sécurité avancée** - JWT, validation, rate limiting, webhooks sécurisés
 
 ## 🛠️ Stack Technique
 
@@ -66,6 +66,37 @@ npm run dev
 
 🎉 **L'API est maintenant accessible sur http://localhost:5000**
 
+## 🆕 Nouveautés 2025 - Intégration FedaPay
+
+### 🚀 Pourquoi FedaPay ?
+- **🇹🇬 Optimisé pour le Togo** : Support natif FLOOZ et TMONEY
+- **⚡ Instantané** : Webhooks temps réel pour confirmation immédiate
+- **🛡️ Sécurisé** : Signatures cryptographiques et validation stricte
+- **📱 Expérience améliorée** : Notifications push directes sur mobile
+- **🔄 Fiable** : Fallback automatique vers PayGate si nécessaire
+
+### 📋 Guide de Migration PayGate → FedaPay
+```bash
+# 1. Configurer les clés FedaPay dans .env
+FEDAPAY_API_KEY=sk_sandbox_your_key
+FEDAPAY_WEBHOOK_SECRET=wh_sandbox_your_secret
+
+# 2. Tester l'intégration
+node test_fedapay.js
+
+# 3. Configurer le webhook sur dashboard.fedapay.com
+# URL: https://votre-domaine.com/api/fedapay/webhook
+
+# 4. Passer en production
+FEDAPAY_ENVIRONMENT=live
+```
+
+### 🔧 Fonctionnalités Avancées
+- **Auto-détection réseau** : Plus besoin de spécifier FLOOZ/TMONEY
+- **Fallback intelligent** : PayGate en cas d'échec FedaPay
+- **Métadonnées enrichies** : Traçabilité complète des transactions
+- **Tests automatisés** : Suite de validation complète
+
 ### 🐳 Avec Docker (Recommandé)
 
 ```bash
@@ -98,10 +129,12 @@ docker-compose up -d --build
 - ✅ Rapports et analytics
 
 ### 💳 Système de Paiement
-- ✅ Intégration PayGate API
-- ✅ Support FLOOZ et TMONEY
-- ✅ Webhooks de confirmation
-- ✅ Gestion des échecs de paiement
+- ✅ **Intégration FedaPay** (Principal) - Support natif FLOOZ/TMONEY pour le Togo
+- ✅ **Intégration PayGate** (Fallback) - Compatibilité avec l'ancien système
+- ✅ **Webhooks temps réel** - Confirmation instantanée des paiements
+- ✅ **Auto-détection réseau** - Identification automatique FLOOZ/TMONEY
+- ✅ **Sécurité cryptographique** - Validation de signatures pour les webhooks
+- ✅ **Gestion des échecs** - Retry automatique et fallback PayGate
 
 ## 🔐 Authentification & Sécurité
 
@@ -131,14 +164,20 @@ src/
 │   ├── student.controller.ts
 │   ├── driver.controller.ts
 │   ├── admin.controller.ts
-│   └── validation.controller.ts
+│   ├── validation.controller.ts
+│   ├── fedapay.webhook.controller.ts    # 🆕 Webhooks FedaPay
+│   └── paygate.webhook.controller.ts
 ├── models/          # Schémas Mongoose
 ├── routes/          # Endpoints REST organisés
 ├── middlewares/     # Auth, validation, sécurité
-├── services/        # PayGate, email, utils
+├── services/        # FedaPay, PayGate, email, utils
+│   ├── fedapay.service.ts              # 🆕 Service FedaPay
+│   └── paygate.service.ts
 ├── config/          # DB, environnement, Swagger
 ├── types/           # Types et interfaces TypeScript
-└── utils/           # Fonctions utilitaires
+├── utils/           # Fonctions utilitaires
+│   └── phone.utils.ts                  # 🆕 Validation numéros togolais
+└── tests/           # Scripts de test et validation
 ```
 
 ### 📋 Modèles de Données
@@ -176,12 +215,20 @@ interface Driver {
 ```typescript
 interface Transaction {
   id: string;
-  identifier: string;      // ID PayGate unique
-  student: ObjectId;       // Référence Student
-  amount: number;          // Montant en FCFA
+  identifier: string;           // ID unique interne
+  student: ObjectId;            // Référence Student
+  amount: number;               // Montant en FCFA
   status: 'pending' | 'success' | 'failed';
-  network: 'FLOOZ' | 'TMONEY';
+  network: 'FLOOZ' | 'TMONEY' | 'auto_detect';
   type: 'purchase' | 'recharge';
+  payment_method: 'fedapay' | 'paygate';  // 🆕 Source de paiement
+  
+  // Données FedaPay (nouveau)
+  fedapay_transaction_id?: number;        // 🆕 ID transaction FedaPay
+  fedapay_reference?: string;             // 🆕 Référence FedaPay
+  merchant_reference?: string;            // 🆕 Référence marchande
+  custom_metadata?: object;               // 🆕 Métadonnées personnalisées
+  
   createdAt: Date;
 }
 ```
@@ -238,10 +285,11 @@ POST /api/validations         # Valider ticket QR
 GET  /api/validations/stats   # Statistiques validations
 ```
 
-### 💳 Transactions
+### 💳 Transactions & Paiements
 ```http
-GET  /api/transactions/:id/status    # Statut transaction
-POST /api/paygate/webhook           # Callback PayGate
+GET  /api/transactions/:id/status       # Statut transaction
+POST /api/fedapay/webhook              # 🆕 Webhook FedaPay (temps réel)
+POST /api/paygate/webhook              # Webhook PayGate (fallback)
 ```
 
 ## 📱 Exemples d'Utilisation
@@ -296,6 +344,35 @@ curl -X POST http://localhost:5000/api/students/buy-ticket \
 }
 ```
 
+### Recharge FedaPay (Nouveau)
+```bash
+curl -X POST http://localhost:5000/api/students/recharge \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phone": "90123456",
+    "amount": 1500,
+    "network": "FLOOZ"
+  }'
+```
+
+**Réponse :**
+```json
+{
+  "success": true,
+  "data": {
+    "transaction_id": "507f1f77bcf86cd799439011",
+    "identifier": "a827115a-8373-47fa-902a-7011599e86dc",
+    "fedapay_transaction_id": 345628,
+    "fedapay_reference": "trx_4_A_1754069951395",
+    "amount": 1500,
+    "network": "FLOOZ",
+    "status": "pending"
+  },
+  "message": "Paiement initié avec FedaPay. Vérifiez votre téléphone pour valider la transaction."
+}
+```
+
 ### Validation QR Code
 ```bash
 curl -X POST http://localhost:5000/api/validations \
@@ -321,7 +398,14 @@ MONGODB_URI=mongodb://localhost:27017/bus-tickets
 JWT_SECRET=your_super_secret_jwt_key_here
 JWT_REFRESH_SECRET=your_super_secret_refresh_key_here
 
-# PayGate API
+# FedaPay API (Principal - Nouveau)
+FEDAPAY_API_KEY=sk_sandbox_your_fedapay_secret_key
+FEDAPAY_PUBLIC_KEY=pk_sandbox_your_fedapay_public_key
+FEDAPAY_ENVIRONMENT=sandbox
+WEBHOOK_URL=https://votre-domaine.com/api/fedapay/webhook
+FEDAPAY_WEBHOOK_SECRET=wh_sandbox_your_webhook_secret
+
+# PayGate API (Fallback)
 PAYGATE_API_KEY=your_paygate_api_key
 PAYGATE_BASE_URL=https://api.paygate.tg
 
@@ -382,6 +466,7 @@ npm run start            # Serveur de production
 npm run test             # Tests unitaires
 npm run test:cov         # Tests avec couverture
 npm run test:watch       # Tests en mode watch
+node test_fedapay.js     # 🆕 Test complet intégration FedaPay
 
 # Qualité
 npm run lint             # ESLint
@@ -468,6 +553,15 @@ PORT=5000
 MONGODB_URI=mongodb+srv://prod-user:password@cluster.mongodb.net/bus-tickets-prod
 JWT_SECRET=super_secure_production_secret
 JWT_REFRESH_SECRET=super_secure_refresh_secret
+
+# FedaPay Production
+FEDAPAY_API_KEY=sk_live_your_live_secret_key
+FEDAPAY_PUBLIC_KEY=pk_live_your_live_public_key  
+FEDAPAY_ENVIRONMENT=live
+WEBHOOK_URL=https://yourapi.com/api/fedapay/webhook
+FEDAPAY_WEBHOOK_SECRET=wh_live_your_live_webhook_secret
+
+# PayGate Fallback
 PAYGATE_API_KEY=prod_paygate_key
 CORS_ORIGIN=https://yourapp.com
 ```

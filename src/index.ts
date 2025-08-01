@@ -7,6 +7,7 @@ import swaggerSpec from './config/swagger';
 import validationRoutes from './routes/validation.routes';
 import transactionRoutes from './routes/transaction.routes';
 import paygateWebhookRoutes from './routes/paygate.webhook.routes';
+import fedaPayWebhookRoutes from './routes/fedapay.webhook.routes'; // Nouveau
 import protectedRoutes from './routes/protected.routes';
 import studentRoutes from './routes/student.routes';
 import driverRoutes from './routes/driver.routes';
@@ -76,6 +77,7 @@ app.use('/api/admins', adminRoutes);
 // Routes protégées d'exemple
 app.use('/api/protected', protectedRoutes);
 app.use('/api/paygate', paygateWebhookRoutes);
+app.use('/api/fedapay', fedaPayWebhookRoutes); // Nouveau webhook FedaPay
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/validations', validationRoutes);
 

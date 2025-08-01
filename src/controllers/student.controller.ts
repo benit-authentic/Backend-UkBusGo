@@ -3,10 +3,14 @@ import bcrypt from 'bcrypt';
 import { Student } from '../models/student.model';
 import { studentRegisterSchema } from '../types/student.schema';
 import { signAccessToken, signRefreshToken } from '../utils/jwt';
+import { initiateFedaPayPayment, sendMobilePayment } from '../services/fedapay.service';
+import { validateTogolanesePhoneNumber, normalizeTogolanesePhoneNumber } from '../utils/phone.utils';
+// Garde PayGate pour compatibilité avec les anciennes transactions
 import { initiatePaygatePayment } from '../services/paygate.service';
 import { Transaction } from '../models/transaction.model';
 import QRCode from 'qrcode';
 import { Validation } from '../models/validation.model';
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Connexion étudiant
  * @route POST /api/students/login
@@ -82,37 +86,146 @@ export const getStudentProfile = async (req: Request, res: Response, next: NextF
 
 
 /**
- * Initier une recharge de compte étudiant
+ * Initier une recharge de compte étudiant avec FedaPay
  * @route POST /api/students/recharge
  */
 export const rechargeStudent = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, amount, network } = req.body;
-    if (!phone || !amount || !network) {
-      return res.status(400).json({ success: false, message: 'Paramètres manquants.' });
+    
+    if (!phone || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Numéro de téléphone et montant requis.' 
+      });
     }
+    
+    // Validation du numéro de téléphone togolais
+    if (!validateTogolanesePhoneNumber(phone)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Format de numéro de téléphone togolais invalide. Utilisez le format: 90123456 ou +22890123456' 
+      });
+    }
+    
+    // Normaliser le numéro
+    const normalizedPhone = normalizeTogolanesePhoneNumber(phone);
+    
     // Vérifier que l'étudiant existe
-    const student = await Student.findOne({ phone });
+    const student = await Student.findOne({ phone: normalizedPhone });
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Étudiant introuvable.' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Étudiant introuvable avec ce numéro de téléphone.' 
+      });
     }
-    // Initier paiement PayGate
-    const paygateRes = await initiatePaygatePayment({ phone_number: phone, amount, network });
-    // Créer la transaction en base
-    await Transaction.create({
-      user: student._id,
-      type: 'recharge',
-      amount,
-      status: 'pending',
-      identifier: paygateRes.identifier,
-      txReference: paygateRes.tx_reference,
-      network,
-    });
-    return res.status(200).json({
-      success: true,
-      data: { txReference: paygateRes.tx_reference, identifier: paygateRes.identifier },
-      message: 'Paiement initié, validez sur votre mobile.',
-    });
+    
+    // Vérifier le montant minimum (ex: 100 FCFA)
+    if (amount < 100) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Montant minimum de recharge: 100 FCFA' 
+      });
+    }
+    
+    try {
+      // Générer un identifiant unique pour notre système
+      const identifier = uuidv4();
+      
+      // Initier le paiement FedaPay (laisser FedaPay auto-détecter le réseau)
+      const fedaPayResponse = await initiateFedaPayPayment({
+        phone_number: normalizedPhone,
+        amount: amount,
+        network: network as 'FLOOZ' | 'TMONEY' | undefined, // Utiliser le réseau spécifié ou undefined pour auto-détection
+        description: `Recharge UkBus - ${student.firstName} ${student.lastName}`,
+        student_id: (student._id as unknown as string)
+      });
+      
+      // Créer la transaction en base de données
+      const transaction = await Transaction.create({
+        user: student._id,
+        type: 'recharge',
+        amount: amount,
+        status: 'pending',
+        identifier: identifier,
+        
+        // Données FedaPay
+        fedapay_transaction_id: fedaPayResponse.transaction_id,
+        fedapay_reference: fedaPayResponse.reference,
+        merchant_reference: fedaPayResponse.merchant_reference,
+        
+        network: network || 'auto_detect',
+        payment_method: 'fedapay',
+        
+        custom_metadata: {
+          student_id: (student._id as any).toString(),
+          service: 'ukbus_recharge',
+          network: network || 'auto_detect',
+          phone_number: normalizedPhone
+        }
+      });
+      
+      // Déclencher le paiement mobile (notification push sur le téléphone)
+      try {
+        await sendMobilePayment(fedaPayResponse.transaction_id, normalizedPhone, network);
+        console.log(`📱 Notification de paiement envoyée à ${normalizedPhone}`);
+      } catch (mobileError) {
+        console.error('Erreur envoi notification mobile:', mobileError);
+        // Ne pas échouer la transaction pour cette erreur
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          transaction_id: transaction._id,
+          identifier: identifier,
+          fedapay_transaction_id: fedaPayResponse.transaction_id,
+          fedapay_reference: fedaPayResponse.reference,
+          amount: amount,
+          network: network || 'auto_detect',
+          status: 'pending'
+        },
+        message: 'Paiement initié avec FedaPay. Vérifiez votre téléphone pour valider la transaction.'
+      });
+      
+    } catch (fedaPayError: any) {
+      console.error('Erreur FedaPay, fallback vers PayGate:', fedaPayError);
+      
+      // Fallback vers PayGate en cas d'erreur FedaPay
+      try {
+        const paygateRes = await initiatePaygatePayment({ 
+          phone_number: normalizedPhone, 
+          amount, 
+          network: network as 'FLOOZ' | 'TMONEY' || 'FLOOZ' 
+        });
+        
+        // Créer la transaction avec PayGate
+        const transaction = await Transaction.create({
+          user: student._id,
+          type: 'recharge',
+          amount,
+          status: 'pending',
+          identifier: paygateRes.identifier,
+          txReference: paygateRes.tx_reference,
+          network: network || 'FLOOZ',
+          payment_method: 'paygate'
+        });
+        
+        return res.status(200).json({
+          success: true,
+          data: { 
+            txReference: paygateRes.tx_reference, 
+            identifier: paygateRes.identifier,
+            payment_method: 'paygate'
+          },
+          message: 'Paiement initié via PayGate. Validez sur votre mobile.'
+        });
+        
+      } catch (paygateError) {
+        throw new Error(`Échec des deux systèmes de paiement. FedaPay: ${fedaPayError.message}, PayGate: ${paygateError}`);
+      }
+    }
+    
   } catch (err) {
     next(err);
   }
