@@ -34,7 +34,20 @@ if (process.env.DEBUG === 'true') {
 app.use(ipNormalizationMiddleware);
 
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigin }));
+
+// Configuration CORS améliorée pour gérer withCredentials
+const corsOptions = {
+  origin: config.corsOrigin === '*' 
+    ? true // Accepte toutes les origines en développement
+    : config.corsOrigin.split(',').map(o => o.trim()),
+  credentials: true, // Permet withCredentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // Cache preflight pendant 10 minutes
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

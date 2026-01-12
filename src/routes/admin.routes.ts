@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerAdmin, loginAdmin, getAdminDashboard, listDrivers, addDriver, deleteDriver } from '../controllers/admin.controller';
+import { registerAdmin, loginAdmin, getAdminDashboard, listDrivers, listStudents, addDriver, deleteDriver } from '../controllers/admin.controller';
 import { requireAuth } from '../middlewares/requireAuth';
 
 const router = Router();
@@ -219,6 +219,56 @@ router.get('/dashboard', requireAuth(['admin']), getAdminDashboard);
  *               message: "Liste des chauffeurs"
  */
 router.get('/drivers', requireAuth(['admin']), listDrivers);
+
+/**
+ * @swagger
+ * /api/admins/students:
+ *   get:
+ *     summary: Lister tous les étudiants (protégé)
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des étudiants
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       phone:
+ *                         type: string
+ *                       studentId:
+ *                         type: string
+ *                       balance:
+ *                         type: number
+ *                 message:
+ *                   type: string
+ *             example:
+ *               success: true
+ *               data:
+ *                 - id: "123"
+ *                   firstName: "John"
+ *                   lastName: "Doe"
+ *                   phone: "+22891234567"
+ *                   studentId: "UK2024001"
+ *                   balance: 1500
+ *               message: "Liste des étudiants"
+ */
+router.get('/students', requireAuth(['admin']), listStudents);
 
 /**
  * @swagger

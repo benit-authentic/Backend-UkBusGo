@@ -126,3 +126,5 @@ temp/
 # Secrets et configurations sensibles
 config/secrets.json
 secrets/
+
+me 

@@ -122,6 +122,19 @@ export const listDrivers = async (req: Request, res: Response, next: NextFunctio
 };
 
 /**
+ * Lister tous les étudiants
+ * @route GET /api/admins/students
+ */
+export const listStudents = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const students = await Student.find().select('-password').lean();
+    return res.status(200).json({ success: true, data: students, message: 'Liste des étudiants' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Ajouter un chauffeur
  * @route POST /api/admins/drivers
  */
